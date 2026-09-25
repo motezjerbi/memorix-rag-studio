@@ -1,10 +1,22 @@
 """
 ingest.py
 ---------
-Lit tous les documents du dossier `documents/`, les découpe en morceaux
+Lit tous les documents du dossier `documents/` (PDF, TXT, Markdown), les découpe en morceaux
 (chunks) adaptés aux contenus techniques (Data Science, code Python, formules),
-détecte les chapitres/sections ainsi que le domaine source, et les indexe
-dans une base vectorielle Chroma locale via Ollama.
+détecte les chapitres/sections ainsi que l'identité de chaque document,
+et les indexe dans une base vectorielle Chroma locale via Ollama.
+
+Identité d'un document (« cours ») : automatique, à partir du nom de fichier.
+    01_Python_Data_Science.pdf  ->  id "python_data_science", libellé "Python Data Science", numéro 1
+    fiche_xgboost.md            ->  id "fiche_xgboost",       libellé "fiche xgboost",       numéro 0
+
+Pour choisir soi-même l'id et le libellé, créer `documents/catalog.json` :
+    {
+      "01_Python_Data_Science.pdf": {"id": "python_ds", "label": "Python & Data Science"}
+    }
+(Garder les anciens id permet de conserver l'historique de progression de progress.db.)
+
+L'index est reconstruit à zéro à chaque lancement : relancer ce script ne crée jamais de doublons.
 
 Usage:
     python ingest.py
@@ -16,13 +28,14 @@ import os
 os.environ["ANONYMIZED_TELEMETRY"] = "FALSE"
 os.environ["CHROMA_TELEMETRY_ENABLED"] = "FALSE"
 
+import json
 import re
+import unicodedata
 import chromadb
 from langchain_community.document_loaders import (
     DirectoryLoader,
     PyPDFLoader,
     TextLoader,
-    UnstructuredMarkdownLoader,
 )
 
 try:
@@ -48,7 +61,9 @@ OCR_LANG = "fra"
 OCR_DPI = 200
 
 DOCUMENTS_DIR = "documents"
+CATALOG_FILE = os.path.join(DOCUMENTS_DIR, "catalog.json")
 PERSIST_DIR = "chroma_db"
+COLLECTION_NAME = "memorix_ds_collection"
 EMBEDDING_MODEL = "nomic-embed-text"
 
 CHUNK_SIZE = 1200
@@ -85,27 +100,96 @@ CHAPTER_PATTERNS = [
     re.compile(r"s[ée]ance\s+(\d+)", re.IGNORECASE),
 ]
 
-BOOK_KEYWORDS = {
-    "python_ds": ["01_python", "data science", "data_science", "python", "pyhton", "pandas", "numpy"],
-    "ml": ["02_machine", "machine learning", "machine_learning", "ml", "scikit", "sklearn"],
-    "cv": ["03_computer", "computer vision", "computer_vision", "cv", "vision", "deep learning", "pytorch"],
-}
-
-BOOK_LABELS = {
-    "python_ds": "Python & Data Science",
-    "ml": "Machine Learning",
-    "cv": "Computer Vision & Deep Learning",
-}
+# Préfixe numérique d'un nom de fichier : "01_", "2-", "03 " ...
+NUMBER_PREFIX_PATTERN = re.compile(r"^(\d+)[\s_.\-]+")
 
 
-def detect_book(source: str) -> str:
-    """Déduit l'identifiant du cours à partir du nom de fichier source."""
-    source_lower = os.path.basename(source).lower()
-    for book_id, keywords in BOOK_KEYWORDS.items():
-        if any(k in source_lower for k in keywords):
-            return book_id
-    return "unknown"
+# ---------------------------------------------------------------------------
+# Identité des documents (plus aucune liste de cours écrite en dur)
+# ---------------------------------------------------------------------------
 
+def _strip_accents(text: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+
+
+def slugify(text: str) -> str:
+    """'Machine Learning (v2)' -> 'machine_learning_v2'."""
+    text = _strip_accents(text).lower()
+    return re.sub(r"[^a-z0-9]+", "_", text).strip("_")
+
+
+def load_catalog(path: str = CATALOG_FILE) -> dict:
+    """Lit documents/catalog.json ({nom_de_fichier: {"id", "label"}}). {} si absent ou illisible."""
+    if not os.path.isfile(path):
+        return {}
+    try:
+        with open(path, encoding="utf-8-sig") as f:  # utf-8-sig : tolère le BOM du Bloc-notes Windows
+            data = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"⚠️  {path} illisible ({e}) : identités déduites des noms de fichiers.")
+        return {}
+    if not isinstance(data, dict):
+        print(f"⚠️  {path} doit contenir un objet JSON : identités déduites des noms de fichiers.")
+        return {}
+    return {k: v for k, v in data.items() if isinstance(v, dict)}
+
+
+def book_identity(source: str, catalog: dict | None = None):
+    """
+    Retourne (book_id, label, number) pour un fichier source.
+    Le catalogue, s'il mentionne le fichier, a priorité sur la déduction automatique.
+    """
+    filename = os.path.basename(source)
+    stem = os.path.splitext(filename)[0]
+
+    number = 0
+    stem_clean = stem
+    m = NUMBER_PREFIX_PATTERN.match(stem)
+    if m:
+        number = int(m.group(1))
+        stem_clean = stem[m.end():]
+
+    book_id = slugify(stem_clean) or slugify(stem) or "document"
+    label = re.sub(r"[_\-]+", " ", stem_clean).strip() or stem
+
+    catalog_lc = {k.lower(): v for k, v in (catalog or {}).items()}
+    entry = catalog_lc.get(filename.lower())
+    if entry:
+        book_id = slugify(str(entry.get("id", ""))) or book_id
+        label = str(entry.get("label") or label)
+
+    return book_id, label, number
+
+
+def assign_identities(sources, catalog: dict | None = None):
+    """
+    Retourne {source: (book_id, label, number, origine)} pour tous les fichiers.
+    Les fichiers du catalogue sont traités en premier ; deux fichiers non catalogués
+    qui donneraient le même id reçoivent un suffixe (_2, _3...) pour ne pas se mélanger.
+    """
+    catalog_lc = {k.lower() for k in (catalog or {})}
+    ordered = sorted(sources, key=lambda s: (os.path.basename(s).lower() not in catalog_lc, s))
+
+    identities = {}
+    taken = set()
+    for source in ordered:
+        book_id, label, number = book_identity(source, catalog)
+        if os.path.basename(source).lower() in catalog_lc:
+            origin = "catalogue"
+        else:
+            origin = "déduit du nom"
+            base, n = book_id, 2
+            while book_id in taken:
+                book_id = f"{base}_{n}"
+                n += 1
+        taken.add(book_id)
+        identities[source] = (book_id, label, number, origin)
+    return identities
+
+
+# ---------------------------------------------------------------------------
+# Chargement
+# ---------------------------------------------------------------------------
 
 def _ocr_page_text(pdf_path: str, page_number: int, dpi: int = OCR_DPI, lang: str = OCR_LANG) -> str:
     """Applique l'OCR Tesseract sur une page PDF scannée si disponible."""
@@ -152,7 +236,7 @@ def load_pdf_with_ocr_fallback(pdf_path: str):
 
 
 def load_documents():
-    """Charge tous les documents PDF, TXT et Markdown du dossier cible."""
+    """Charge tous les documents PDF, TXT et Markdown du dossier cible (sous-dossiers inclus)."""
     docs = []
 
     pdf_paths = []
@@ -171,9 +255,11 @@ def load_documents():
     docs.extend(pdf_pages)
     print(f"  -> {len(pdf_paths)} fichier(s) PDF chargé(s) ({len(pdf_pages)} page(s))")
 
+    # Markdown lu comme du texte brut (UTF-8) : garde les titres "##" et les blocs de code,
+    # que les séparateurs du découpage exploitent, et n'exige aucune dépendance supplémentaire.
     loaders_config = [
         ("**/*.txt", TextLoader),
-        ("**/*.md", UnstructuredMarkdownLoader),
+        ("**/*.md", TextLoader),
     ]
 
     for glob_pattern, loader_cls in loaders_config:
@@ -181,6 +267,8 @@ def load_documents():
             DOCUMENTS_DIR,
             glob=glob_pattern,
             loader_cls=loader_cls,
+            loader_kwargs={"encoding": "utf-8"},
+            silent_errors=True,  # un fichier illisible est signalé mais ne bloque pas les autres
             show_progress=True,
         )
         try:
@@ -192,6 +280,10 @@ def load_documents():
 
     return docs
 
+
+# ---------------------------------------------------------------------------
+# Sections et découpage
+# ---------------------------------------------------------------------------
 
 def find_section_matches(text: str):
     """Localise toutes les têtes de sections/chapitres dans le contenu brut."""
@@ -247,24 +339,32 @@ def group_documents_by_source(documents):
     return full_texts
 
 
-def build_tagged_chunks(full_texts):
+def build_tagged_chunks(full_texts, catalog: dict | None = None):
     """
     Découpe le contenu par section puis applique un text splitter adapté
     à la Data Science et au code pour préserver les blocs logiques.
+    Chaque chunk porte : source, book (id), book_label, course_no, chapter, chunk_index.
     """
+    if catalog is None:
+        catalog = load_catalog()
+
     splitter = RecursiveCharacterTextSplitter(
         separators=DATA_SCIENCE_SEPARATORS,
         chunk_size=CHUNK_SIZE,
         chunk_overlap=CHUNK_OVERLAP,
     )
 
+    identities = assign_identities(list(full_texts), catalog)
+
+    print("📇 Documents reconnus :")
+    for source in sorted(identities):
+        book_id, label, number, origin = identities[source]
+        print(f"   - {source}  ->  id '{book_id}' | « {label} » | {origin}")
+
     final_docs = []
-    unknown_sources = set()
 
     for source, full_text in full_texts.items():
-        book_id = detect_book(source)
-        if book_id == "unknown":
-            unknown_sources.add(source)
+        book_id, label, number, _origin = identities[source]
 
         segments = split_text_by_sections(full_text)
 
@@ -283,34 +383,32 @@ def build_tagged_chunks(full_texts):
                         metadata={
                             "source": source,
                             "book": book_id,
+                            "book_label": label,
+                            "course_no": number,
                             "chapter": chapter_number,
                             "chunk_index": chunk_index,
                         },
                     )
                 )
 
-    if unknown_sources:
-        print("⚠️  Attention : ces fichiers n'ont pas été rattachés à un livre connu :")
-        for src in sorted(unknown_sources):
-            print(f"   - {src}")
-        print("   -> Ajoute un mot-clé dans BOOK_KEYWORDS si nécessaire.")
-
     _warn_if_no_chapter_detected(final_docs)
     return final_docs
 
 
 def _warn_if_no_chapter_detected(chunks):
-    """Vérifie si des cours restent sans chapitre identifié (chapitre '0')."""
-    books = sorted(set(c.metadata.get("book", "unknown") for c in chunks))
-    for book_id in books:
+    """Signale les documents sans section numérotée (ils restent interrogeables)."""
+    labels = {}
+    for c in chunks:
+        labels.setdefault(c.metadata.get("book"), c.metadata.get("book_label", c.metadata.get("book")))
+
+    for book_id, label in sorted(labels.items(), key=lambda kv: str(kv[0])):
         book_chunks = [c for c in chunks if c.metadata.get("book") == book_id]
         chapters = set(c.metadata.get("chapter", "0") for c in book_chunks)
         if chapters == {"0"}:
-            label = BOOK_LABELS.get(book_id, book_id)
-            print(f"\n⚠️  Aucune sous-section détectée pour '{label}'. Aperçu des premiers extraits :")
-            for c in book_chunks[:2]:
-                preview = c.page_content[:140].replace("\n", " ")
-                print(f"   ... {preview} ...")
+            print(
+                f"\nℹ️  Aucune section numérotée détectée pour « {label} » : le document reste interrogeable, "
+                f"et les synthèses, fiches et quiz travailleront sur le document entier."
+            )
 
 
 def main():
@@ -334,23 +432,28 @@ def main():
     chunks = build_tagged_chunks(full_texts)
 
     books_found = sorted(set(c.metadata["book"] for c in chunks))
-    print(f"📘 Domaines indexés : {[BOOK_LABELS.get(b, b) for b in books_found]}")
-
+    print(f"\n📘 {len(books_found)} document(s) indexé(s) :")
     for book_id in books_found:
+        label = next(c.metadata["book_label"] for c in chunks if c.metadata["book"] == book_id)
         chapters = sorted(
             set(c.metadata["chapter"] for c in chunks if c.metadata["book"] == book_id),
             key=lambda x: (len(x), x),
         )
-        print(f"   - {BOOK_LABELS.get(book_id, book_id)} : sections {chapters}")
+        print(f"   - {label} ({book_id}) : sections {chapters}")
 
-    print(f"🧠 Vectorisation avec '{EMBEDDING_MODEL}' (Ollama)...")
+    print(f"\n🧠 Vectorisation avec '{EMBEDDING_MODEL}' (Ollama)...")
     embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
 
     print(f"💾 Stockage Chroma dans '{PERSIST_DIR}/'...")
     client = chromadb.PersistentClient(path=PERSIST_DIR)
+    try:
+        client.delete_collection(COLLECTION_NAME)  # reconstruction à zéro : jamais de doublons
+    except Exception:
+        pass  # première indexation : rien à supprimer
+
     Chroma.from_documents(
         client=client,
-        collection_name="memorix_ds_collection",
+        collection_name=COLLECTION_NAME,
         documents=chunks,
         embedding=embeddings,
     )

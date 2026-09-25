@@ -2,8 +2,8 @@
 chat.py
 -------
 Chatbot en ligne de commande orienté études Data Science, IA & MLOps :
-répond à des questions techniques, génère des résumés d'architecture,
-des fiches mémo et des quiz spécialisés sur un cours entier ou une section précise.
+répond à des questions techniques, génère des résumés, des fiches mémo
+et des quiz sur un document entier ou une section précise.
 Toute la logique métier est centralisée dans rag_core.py.
 
 Usage:
@@ -14,7 +14,7 @@ import os
 
 os.environ.setdefault("ANONYMIZED_TELEMETRY", "FALSE")
 
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate
 import rag_core as core
 
 QUIZ_KEYWORDS = ["quiz", "qcm", "teste-moi", "teste moi", "questionnaire", "test"]
@@ -35,32 +35,34 @@ def print_sources(docs):
 
 def resolve_book_or_explain(question, chapter_number, vectorstore, action_hint):
     """
-    Identifie le module/livre Data Science visé par la question.
-    En cas d'ambiguïté, guide l'utilisateur vers les cours indexés.
+    Identifie le document visé par la commande (résume / fiche / quiz).
+    En cas d'ambiguïté, guide l'utilisateur vers les documents indexés.
     """
-    book_id = core.detect_book_in_question(question)
+    books = core.get_books_info(vectorstore)
+
+    book_id = core.detect_book_in_question(question, books, strict=False)
     if book_id is not None:
         return book_id
 
     if chapter_number:
         candidates = core.get_books_with_chapter(vectorstore, chapter_number)
         if len(candidates) == 0:
-            print(f"\n⚠️  Aucun cours indexé ne contient la section {chapter_number}.\n")
+            print(f"\n⚠️  Aucun document indexé ne contient la section {chapter_number}.\n")
             return None
         if len(candidates) == 1:
             return candidates[0]
-        labels = ", ".join(core.BOOK_LABELS.get(b, b) for b in candidates)
+        labels = ", ".join(books.get(b, {}).get("label", b) for b in candidates)
+        first = books.get(candidates[0], {}).get("label", candidates[0])
         print(
-            f"\n🤔 Plusieurs cours comportent une section {chapter_number} : {labels}.\n"
-            f"   Précise par exemple : '{action_hint} {chapter_number} de "
-            f"{core.BOOK_LABELS.get(candidates[0], candidates[0])}'\n"
+            f"\n🤔 Plusieurs documents comportent une section {chapter_number} : {labels}.\n"
+            f"   Précise par exemple : '{action_hint} {chapter_number} de {first}'\n"
         )
         return None
 
-    labels = ", ".join(core.BOOK_LABELS.values())
+    labels = ", ".join(info["label"] for info in books.values())
     print(
-        f"\n🤔 Spécifie le domaine Data Science concerné. Cours disponibles : {labels}.\n"
-        f"   Indique le nom ou le numéro de cours dans ta commande.\n"
+        f"\n🤔 Précise le document concerné. Documents disponibles : {labels}.\n"
+        f"   Indique son nom ou son numéro (ex. 'cours 2') dans ta commande.\n"
     )
     return None
 
@@ -82,12 +84,18 @@ def main():
         input_variables=["context", "question"],
     )
 
+    books = core.get_all_books(vectorstore)
+
     print("\n✅ Cockpit MEMORIX (Data Science Hub) opérationnel ! Tape 'exit' pour quitter.")
+    print("📖 Documents indexés :")
+    for label in books.values():
+        print(f"   - {label}")
     print("💡 Commandes rapides :")
-    print("   - 'résume le cours 2' (synthèse Machine Learning)")
-    print("   - 'fiche de révision sur computer vision' (définitions, tenseurs et loss)")
-    print("   - 'quiz sur le cours 1' (validation interactive)")
-    print("   - 'résume la section 3 de machine learning' (zoom ciblé)\n")
+    print("   - une question libre : réponse depuis les documents (📚) ou connaissance générale (🌐)")
+    print("   - 'résume le cours 2'")
+    print("   - 'fiche de révision sur <nom du document>'")
+    print("   - 'quiz sur le cours 1'")
+    print("   - 'résume la section 3 de <nom du document>' (zoom ciblé)\n")
 
     while True:
         question = input("❓ Requête technique : ").strip()
@@ -111,7 +119,7 @@ def main():
                 print("-" * 60)
                 continue
 
-            book_label = core.BOOK_LABELS.get(book_id, book_id)
+            book_label = books.get(book_id, book_id)
             if chapter_number:
                 print(f"\n📝 Élaboration du protocole QCM — section {chapter_number} ({book_label})...")
                 docs = core.get_chapter_chunks(vectorstore, chapter_number, book_id)
@@ -152,13 +160,13 @@ def main():
                 print("-" * 60)
                 continue
 
-            book_label = core.BOOK_LABELS.get(book_id, book_id)
+            book_label = books.get(book_id, book_id)
             if chapter_number:
                 print(f"\n📋 Extraction de la fiche technique — section {chapter_number} ({book_label})...")
                 docs = core.get_chapter_chunks(vectorstore, chapter_number, book_id)
                 empty_msg = f"Aucun extrait localisé pour la section {chapter_number} dans '{book_label}'."
             else:
-                print(f"\n📋 Extraction de la fiche technique — {book_label} (module entier)...")
+                print(f"\n📋 Extraction de la fiche technique — {book_label} (document entier)...")
                 docs = core.get_book_chunks(vectorstore, book_id)
                 empty_msg = f"Aucun contenu indexé pour '{book_label}'."
 
@@ -178,7 +186,7 @@ def main():
                 print("-" * 60)
                 continue
 
-            book_label = core.BOOK_LABELS.get(book_id, book_id)
+            book_label = books.get(book_id, book_id)
             if chapter_number:
                 print(f"\n📖 Synthèse approfondie — section {chapter_number} ({book_label})...")
                 docs = core.get_chapter_chunks(vectorstore, chapter_number, book_id)
@@ -197,7 +205,7 @@ def main():
             print("-" * 60)
             continue
 
-        # --- Mode 4 : Recherche augmentée (QA classique) ---
+        # --- Mode 4 : Recherche augmentée (documents -> preuve -> réponse générale) ---
         answer, docs, warning = core.answer_question(vectorstore, llm, qa_prompt, question)
         print(f"\n💬 Réponse technique :\n{answer}\n")
         if warning:

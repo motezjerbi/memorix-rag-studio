@@ -1,0 +1,233 @@
+[
+  {
+    "question": "Comment utiliser pandas pour lire un CSV ?",
+    "attendu": "documents",
+    "source": "01_Python",
+    "categorie": "usage (avec mot-clé)"
+  },
+  {
+    "question": "Qu'est-ce que NumPy ?",
+    "attendu": "documents",
+    "source": "01_Python",
+    "categorie": "définition"
+  },
+  {
+    "question": "Comment remplacer les valeurs manquantes d'une colonne avec pandas ?",
+    "attendu": "documents",
+    "source": "06_Complements",
+    "categorie": "usage (sans mot-clé)"
+  },
+  {
+    "question": "Qu'est-ce que le surapprentissage ?",
+    "attendu": "documents",
+    "source": "02_Machine",
+    "categorie": "définition"
+  },
+  {
+    "question": "Comment détecter l'overfitting ?",
+    "attendu": "documents",
+    "source": "03_Computer",
+    "categorie": "définition"
+  },
+  {
+    "question": "Que signifie R² en régression ?",
+    "attendu": "documents",
+    "source": "02_Machine",
+    "categorie": "définition"
+  },
+  {
+    "question": "Quelle est la différence entre régression et classification ?",
+    "attendu": "documents",
+    "source": "02_Machine",
+    "categorie": "définition"
+  },
+  {
+    "question": "Pourquoi ne faut-il pas faire fit_transform sur les données de test ?",
+    "attendu": "documents",
+    "source": "02_Machine",
+    "categorie": "définition"
+  },
+  {
+    "question": "Que faire quand les classes sont déséquilibrées ?",
+    "attendu": "documents",
+    "source": "06_Complements",
+    "categorie": "définition"
+  },
+  {
+    "question": "Comment séparer les données en train et test avec scikit-learn ?",
+    "attendu": "documents",
+    "source": "02_Machine",
+    "categorie": "usage (sans mot-clé)"
+  },
+  {
+    "question": "Qu'est-ce qu'un réseau convolutif (CNN) ?",
+    "attendu": "documents",
+    "source": "03_Computer",
+    "categorie": "définition"
+  },
+  {
+    "question": "À quoi sert le stride dans une convolution ?",
+    "attendu": "documents",
+    "source": "03_Computer",
+    "categorie": "définition"
+  },
+  {
+    "question": "Qu'est-ce que le max pooling ?",
+    "attendu": "documents",
+    "source": "03_Computer",
+    "categorie": "définition"
+  },
+  {
+    "question": "À quoi sert la data augmentation ?",
+    "attendu": "documents",
+    "source": "03_Computer",
+    "categorie": "définition"
+  },
+  {
+    "question": "Quand faut-il utiliser le transfer learning ?",
+    "attendu": "documents",
+    "source": "03_Computer",
+    "categorie": "définition"
+  },
+  {
+    "question": "Qu'est-ce que la p-value ?",
+    "attendu": "documents",
+    "source": "05_Statistiques",
+    "categorie": "définition"
+  },
+  {
+    "question": "Qu'est-ce qu'un intervalle de confiance ?",
+    "attendu": "documents",
+    "source": "05_Statistiques",
+    "categorie": "définition"
+  },
+  {
+    "question": "Qu'est-ce que la variance ?",
+    "attendu": "documents",
+    "source": "05_Statistiques",
+    "categorie": "définition"
+  },
+  {
+    "question": "What is overfitting?",
+    "attendu": "documents",
+    "source": "02_Machine",
+    "categorie": "question en anglais"
+  },
+  {
+    "question": "What is a p-value?",
+    "attendu": "documents",
+    "source": "05_Statistiques",
+    "categorie": "question en anglais"
+  },
+  {
+    "question": "Comment fonctionne un algorithme de Random Forest ?",
+    "attendu": "general",
+    "categorie": "nom cité seulement"
+  },
+  {
+    "question": "Qu'est-ce que ResNet ?",
+    "attendu": "general",
+    "categorie": "nom cité seulement"
+  },
+  {
+    "question": "Qu'est-ce que la validation croisée ?",
+    "attendu": "general",
+    "categorie": "nom cité seulement"
+  },
+  {
+    "question": "Qu'est-ce que la régularisation ?",
+    "attendu": "general",
+    "categorie": "nom cité seulement"
+  },
+  {
+    "question": "Qu'est-ce que XGBoost ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "Comment fonctionne une SVM ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "Comment fonctionne l'algorithme k-means ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "Qu'est-ce que l'analyse en composantes principales (ACP) ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "Qu'est-ce qu'un Transformer en deep learning ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "Qu'est-ce que le mécanisme d'attention ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "Qu'est-ce que LoRA pour le fine-tuning ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "Comment fonctionne la descente de gradient ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "Qu'est-ce qu'un test A/B ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "Qu'est-ce que le data drift ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "Comment déployer un modèle avec Docker ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "À quoi sert un LEFT JOIN en SQL ?",
+    "attendu": "general",
+    "categorie": "hors corpus (data science)"
+  },
+  {
+    "question": "Quelle est la capitale de la France ?",
+    "attendu": "general",
+    "categorie": "hors sujet"
+  },
+  {
+    "question": "Quelle est la capitale du Japon ?",
+    "attendu": "general",
+    "categorie": "hors sujet"
+  },
+  {
+    "question": "Donne-moi une recette de crêpes.",
+    "attendu": "general",
+    "categorie": "hors sujet"
+  },
+  {
+    "question": "Comment entraîner une régression linéaire avec scikit-learn ?",
+    "attendu": "documents",
+    "source": "02_Machine",
+    "categorie": "usage (sans mot-clé)"
+  },
+  {
+    "question": "Comment entraîner un modèle XGBoost ?",
+    "attendu": "general",
+    "categorie": "usage hors corpus"
+  },
+  {
+    "question": "Comment créer un DataFrame à partir d'un dictionnaire ?",
+    "attendu": "general",
+    "categorie": "usage hors corpus"
+  }
+]

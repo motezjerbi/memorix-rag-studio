@@ -1,69 +1,73 @@
 """
 debug_preuve.py
 ---------------
-Montre, étape par étape, pourquoi la preuve d'une question est acceptée ou rejetée.
-Change QUESTION pour tester une autre question. Ollama doit être lancé.
+Montre, étape par étape, comment la preuve d'une question est trouvée ou rejetée.
+Utilise le même juge (température 0) et le même mode que l'application. Ollama doit être lancé.
 
-Usage : python debug_preuve.py
+Usage :
+    python debug_preuve.py "Qu'est-ce que la p-value ?"
+    python debug_preuve.py "Qu'est-ce que la p-value ?" recopie     (ancienne méthode)
 """
+
+import sys
 
 import rag_core as core
 
-QUESTION = "Comment utiliser pandas pour lire un CSV ?"
+QUESTION_PAR_DEFAUT = "Comment utiliser pandas pour lire un CSV ?"
 
 
 def main():
-    vs = core.load_vectorstore()
-    llm = core.load_llm()
+    question = sys.argv[1] if len(sys.argv) > 1 else QUESTION_PAR_DEFAUT
+    if len(sys.argv) > 2:
+        core.PREUVE_MODE = sys.argv[2]
 
-    results = core.retrieve_with_scores(vs, QUESTION)
+    vs = core.load_vectorstore()
+    judge = core.load_judge_llm()
+
+    results = core.retrieve_with_scores(vs, question)
     docs = [d for d, s in results if s <= core.DISTANCE_MAX]
 
-    print(f"Question : {QUESTION}")
+    print(f"Question : {question}")
+    print(f"Mode de preuve : {core.PREUVE_MODE}")
     print(f"{len(docs)} extrait(s) sous le seuil de distance ({core.DISTANCE_MAX})\n")
-
-    print("=== Extraits montrés à Mistral ===")
-    for i, (d, s) in enumerate(results[: core.JUDGE_MAX_EXTRACTS], start=1):
-        apercu = d.page_content[:200].replace("\n", " ")
-        print(f"[{i}] distance {s:.3f} | {d.metadata.get('source')}\n    {apercu}\n")
-
     if not docs:
         print("Aucun extrait assez proche : réponse générale directe.")
         return
 
-    context = "\n\n".join(d.page_content for d in docs[: core.JUDGE_MAX_EXTRACTS])
-    reponse = llm.invoke(
-        core.PREUVE_PROMPT_TEMPLATE.format(context=context, question=QUESTION)
-    ).strip()
+    print("=== Extraits retrouvés ===")
+    for i, (d, s) in enumerate(results, start=1):
+        apercu = d.page_content[:150].replace("\n", " ")
+        print(f"[{i}] distance {s:.3f} | {d.metadata.get('source')}\n    {apercu}")
 
-    print("=== Réponse brute de Mistral ===")
-    print(reponse, "\n")
+    details = {}
+    preuve, support = core.analyser_preuve(
+        judge, docs, question, details=details, embeddings=getattr(vs, "embeddings", None),
+    )
 
-    print("=== Vérifications du code ===")
-    if core.re.match(r"\W*aucune", reponse.lower()):
-        print("❌ Mistral a répondu AUCUNE.")
-        return
+    print(f"\n=== Ce que le juge a vu ({details.get('extraits', '?')}) ===")
+    if "classement" in details:
+        print(f"Classement des phrases : {details['classement']} | question d'usage : {details.get('usage')}")
+    for k, ph in enumerate(details.get("phrases", []), start=1):
+        print(f"[{k}] {ph}")
 
-    match = core.QUOTE_PATTERN.search(reponse)
-    if not match:
-        print("❌ Pas de phrase entre guillemets dans la réponse.")
-        return
+    print("\n=== Réponse brute du juge ===")
+    print(repr(details.get("reponse", "")))
 
-    phrase = match.group(1).strip()
-    print(f"Phrase extraite : {phrase}\n")
+    if "verification" in details:
+        print("\n=== Vérification (2e étape, une seule phrase) ===")
+        print(repr(details["verification"]))
 
-    ok_longueur = len(phrase) >= core.PREUVE_MIN_CHARS
-    ok_pas_code = not core.CODE_OR_LIST_PATTERN.search(phrase)
-    ok_existe = core._norm(phrase) in core._norm(context)
+    print("\n=== Verdict ===")
+    for phrase, motif in details.get("examens", []):
+        apercu = phrase if len(phrase) <= 110 else phrase[:107] + "..."
+        print(f"- {motif}" + (f"\n     {apercu!r}" if phrase else ""))
 
-    print(f"{'✅' if ok_longueur else '❌'} Longueur ({len(phrase)} caractères, minimum {core.PREUVE_MIN_CHARS})")
-    print(f"{'✅' if ok_pas_code else '❌'} Pas de code ni de liste")
-    print(f"{'✅' if ok_existe else '❌'} La phrase existe vraiment dans les extraits")
-
-    if ok_longueur and ok_pas_code and ok_existe:
-        print("\n➡️  Preuve VALIDE : la question serait en 📚 documents.")
+    print()
+    if preuve:
+        sources = sorted({d.metadata.get("source") for d in support})
+        print(f"➡️  Preuve VALIDE -> 📚 documents. Sources : {', '.join(sources)}")
     else:
-        print("\n➡️  Preuve REJETÉE : la question part en 🌐 général.")
+        print("➡️  Preuve REJETÉE -> 🌐 général.")
 
 
 if __name__ == "__main__":
