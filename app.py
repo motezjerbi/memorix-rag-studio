@@ -2,7 +2,7 @@
 app.py
 ------
 Interface cockpit pour MEMORIX : Studio RAG d'études et révisions.
-Design cinématique New Yorker, typographie d'ingénierie, en-tête unifié sans scroll.
+Design cinématique New Yorker, typographie d'ingénierie, chatbot de pointe sans scroll.
 """
 
 import base64
@@ -79,20 +79,12 @@ def _salutation() -> str:
     return "Bonsoir"
 
 
-def _avatar_circle_html(picture: str | None, name: str, size: int = 44) -> str:
+def _avatar_tag(picture: str | None, name: str, size: int = 42) -> str:
+    """Avatar en cercle parfait avec bordure néon violette."""
     if picture:
-        img_code = f'<img src="{picture}" referrerpolicy="no-referrer" class="top-avatar-circle-img" style="width:{size}px;height:{size}px;min-width:{size}px;"/>'
-    else:
-        initiales = "".join(m[0] for m in (name or "?").split()[:2]).upper()
-        img_code = f'<div class="top-avatar-circle-fallback" style="width:{size}px;height:{size}px;min-width:{size}px;font-size:{int(size*0.38)}px;">{initiales}</div>'
-
-    return f"""
-    <div class="user-avatar-orbit-box">
-        <div class="user-avatar-ring"></div>
-        {img_code}
-        <span class="user-online-led"></span>
-    </div>
-    """
+        return f'<img src="{picture}" referrerpolicy="no-referrer" class="top-avatar-circle-img" style="width:{size}px;height:{size}px;min-width:{size}px;"/>'
+    initiales = "".join(m[0] for m in (name or "?").split()[:2]).upper()
+    return f'<div class="top-avatar-circle-fallback" style="width:{size}px;height:{size}px;min-width:{size}px;font-size:{int(size*0.38)}px;">{initiales}</div>'
 
 
 def render_login_gate():
@@ -128,7 +120,7 @@ def render_login_gate():
 
 
 # ---------------------------------------------------------------------------
-# Landing Page : Format Cinématique New Yorker (Plein écran sans zoom)
+# Landing Page : Format Cinématique New Yorker (Full-Screen Fit)
 # ---------------------------------------------------------------------------
 
 def render_landing_page():
@@ -167,8 +159,8 @@ def render_landing_page():
     )
     st.markdown(bg_llm_canvas, unsafe_allow_html=True)
 
-    # 1. En-tête supérieur pro : Logo officiel à gauche, Slogan animé + Profil & Quitter à droite
-    nav_l, nav_r = st.columns([2.6, 1.8], vertical_alignment="center")
+    # 1. En-tête supérieur pro : Logo officiel à gauche, Profil & Quitter à droite
+    nav_l, nav_r = st.columns([3.0, 1.4], vertical_alignment="center")
 
     with nav_l:
         if encoded_logo:
@@ -186,36 +178,27 @@ def render_landing_page():
         st.markdown(brand_html, unsafe_allow_html=True)
 
     with nav_r:
-        u_box, u_btn = st.columns([2.6, 1.0], vertical_alignment="center")
+        u_box, u_btn = st.columns([2.3, 1.0], vertical_alignment="center")
         with u_box:
-            top_user_html = (
-                f'<div class="top-user-interactive-area">'
-                f'  <div class="top-slogan-kinetic">⚡ LE RÉFÉRENTIEL DATA SCIENCE &amp; IA</div>'
-                f'  <div class="top-user-pill-row">'
-                f'    {_avatar_circle_html(st.user.picture, st.user.name, 44)}'
-                f'    <div class="sliding-welcome-toast">'
-                f'      <span class="welcome-book-icon">📖</span>'
-                f'      <div class="welcome-text-group">'
-                f'        <span class="welcome-salutation">{_salutation()}</span>'
-                f'        <span class="welcome-username">{st.user.name}</span>'
-                f'      </div>'
-                f'    </div>'
-                f'    <div class="streak-mini-pill" title="Série de révisions consécutives">🔥 <strong>4j</strong></div>'
+            user_chip_html = (
+                f'<div class="top-user-chip">'
+                f'  {_avatar_tag(st.user.picture, st.user.name, 42)}'
+                f'  <div class="top-user-meta">'
+                f'    <span class="top-user-greeting">{_salutation()}</span>'
+                f'    <span class="top-user-name">{st.user.name}</span>'
                 f'  </div>'
                 f'</div>'
             )
-            st.markdown(top_user_html, unsafe_allow_html=True)
-
+            st.markdown(user_chip_html, unsafe_allow_html=True)
         with u_btn:
             if st.button("Quitter", key="top_logout_btn", use_container_width=True):
                 st.session_state.pop("welcome_shown", None)
                 st.logout()
 
-    # 2. Grand Billboard Cinématique avec Livre animé, Scanner laser & Hub Télémétrique
+    # 2. Grand Billboard Cinématique avec Slogan & Livre animé
     hero_billboard_html = (
         '<div class="ny-hero-billboard">'
         '  <div class="ny-hero-bg-overlay"></div>'
-        '  <div class="billboard-scanner-line"></div>'
         '  <div class="ny-slogan-watermark">VOTRE SOURCE ULTIME EN DATA SCIENCE</div>'
         '  <div class="ny-holo-book">'
         '    <svg viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">'
@@ -240,8 +223,6 @@ def render_landing_page():
         '      <span class="ny-spec-item"><strong>&lt; 100ms</strong> LATENCE DE RETRIEVAL</span>'
         '      <span class="ny-spec-sep">/</span>'
         '      <span class="ny-spec-item"><strong>SM-2</strong> MÉMORISATION ACTIVE</span>'
-        '      <span class="ny-spec-sep">/</span>'
-        '      <span class="ny-spec-item live-pulse-badge">● <strong>15 MODES ACTIFS</strong></span>'
         '    </div>'
         '  </div>'
         '</div>'
@@ -270,7 +251,7 @@ def render_landing_page():
     )
     st.markdown(ticker_html, unsafe_allow_html=True)
 
-    # 4. Grille de 4 Affiches Thématiques (Format New Yorker Ultra-Attractif)
+    # 4. Grille de 4 Affiches Thématiques (Format New Yorker)
     c1, c2, c3, c4 = st.columns(4)
 
     with c1:
@@ -279,12 +260,10 @@ def render_landing_page():
             <div class="ny-card">
               <div class="ny-card-media" style="background-image: url('https://images.unsplash.com/photo-1507146426996-ef05306b995a?auto=format&fit=crop&w=400&q=80');">
                 <span class="ny-card-badge">VISION</span>
-                <span class="ny-card-level">SOTA / VIT</span>
               </div>
               <div class="ny-card-content">
                 <h4>COMPUTER VISION</h4>
                 <p>Convolutions, ViT, backbones et segmentation.</p>
-                <div class="ny-card-meter"><div class="meter-bar meter-cv"></div></div>
               </div>
             </div>
             """,
@@ -304,12 +283,10 @@ def render_landing_page():
             <div class="ny-card">
               <div class="ny-card-media" style="background-image: url('https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=400&q=80');">
                 <span class="ny-card-badge">NLP</span>
-                <span class="ny-card-level">LLM / LORA</span>
               </div>
               <div class="ny-card-content">
                 <h4>NLP & LLMS</h4>
                 <p>Attention multi-têtes, tokens et fine-tuning LoRA.</p>
-                <div class="ny-card-meter"><div class="meter-bar meter-nlp"></div></div>
               </div>
             </div>
             """,
@@ -329,12 +306,10 @@ def render_landing_page():
             <div class="ny-card">
               <div class="ny-card-media" style="background-image: url('https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=400&q=80');">
                 <span class="ny-card-badge">MLOPS</span>
-                <span class="ny-card-level">CI/CD PROD</span>
               </div>
               <div class="ny-card-content">
                 <h4>MLOPS & PIPELINES</h4>
                 <p>Data drift, registries, Docker et CI/CD.</p>
-                <div class="ny-card-meter"><div class="meter-bar meter-mlops"></div></div>
               </div>
             </div>
             """,
@@ -354,12 +329,10 @@ def render_landing_page():
             <div class="ny-card">
               <div class="ny-card-media" style="background-image: url('https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=400&q=80');">
                 <span class="ny-card-badge">MATHS</span>
-                <span class="ny-card-level">OPTIM & STATS</span>
               </div>
               <div class="ny-card-content">
                 <h4>STATS & FONDEMENTS</h4>
                 <p>Gradients, régularisation L1/L2 et probabilités.</p>
-                <div class="ny-card-meter"><div class="meter-bar meter-maths"></div></div>
               </div>
             </div>
             """,
@@ -373,21 +346,11 @@ def render_landing_page():
             st.session_state.app_started = True
             st.rerun()
 
-    # 5. Zone d'action centrale double : Entrée Cockpit & Défi Flash
+    # 5. Bouton central d'entrée cockpit
     st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
-    col_act1, col_act2 = st.columns([1.6, 1.2], vertical_alignment="center")
-
-    with col_act1:
+    _, col_action, _ = st.columns([1.5, 2.2, 1.5])
+    with col_action:
         if st.button("⚡ ACCÉDER AU COCKPIT STUDIO →", type="primary", use_container_width=True):
-            st.session_state.app_started = True
-            st.rerun()
-
-    with col_act2:
-        if st.button("🎯 Lancer un Défi Flash 60s (Express)", use_container_width=True):
-            st.session_state.initial_prefill_query = (
-                "Pose-moi immédiatement une question technique pointue de niveau Master en Data Science "
-                "avec 4 choix (A, B, C, D) et analyse ma réponse."
-            )
             st.session_state.app_started = True
             st.rerun()
 
@@ -430,7 +393,7 @@ def render_brand():
 
     if st.user.is_logged_in:
         st.sidebar.markdown(
-            f'<div class="pilot-badge">{_avatar_circle_html(st.user.picture, st.user.name, 36)}'
+            f'<div class="pilot-badge">{_avatar_tag(st.user.picture, st.user.name, 36)}'
             f'<div><div class="pilot-name">{st.user.name}</div>'
             f'<div class="pilot-status">Session active</div></div></div>',
             unsafe_allow_html=True,
@@ -633,7 +596,7 @@ if requires_picker:
 
 
 # ---------------------------------------------------------------------------
-# Mode 1 : Recherche augmentée
+# Mode 1 : Recherche augmentée (Chatbot Pro Cybernétique)
 # ---------------------------------------------------------------------------
 
 @st.fragment
@@ -683,10 +646,16 @@ def render_chat_cockpit(vectorstore, llm, qa_prompt):
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
+    # Rendu des messages avec des avatars professionnels dédiés
     for turn in st.session_state.chat_history:
-        with st.chat_message(turn["role"]):
-            st.markdown(turn["content"])
-            if turn["role"] == "assistant":
+        if turn["role"] == "user":
+            with st.chat_message("user", avatar="👤"):
+                st.markdown(f'<div class="chat-sender-label user-label">PILOTE // {st.user.name}</div>', unsafe_allow_html=True)
+                st.markdown(turn["content"])
+        else:
+            with st.chat_message("assistant", avatar="⚡"):
+                st.markdown('<div class="chat-sender-label ai-label">MEMORIX // RAG CORE INFERENCE</div>', unsafe_allow_html=True)
+                st.markdown(turn["content"])
                 if turn.get("warning"):
                     st.warning(turn["warning"])
                 if turn.get("docs"):
@@ -702,11 +671,13 @@ def render_chat_cockpit(vectorstore, llm, qa_prompt):
 
     if question:
         st.session_state.chat_history.append({"role": "user", "content": question})
-        with st.chat_message("user"):
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(f'<div class="chat-sender-label user-label">PILOTE // {st.user.name}</div>', unsafe_allow_html=True)
             st.markdown(question)
 
-        with st.chat_message("assistant"):
-            with st.spinner("Recherche vectorielle et inférence technique..."):
+        with st.chat_message("assistant", avatar="⚡"):
+            st.markdown('<div class="chat-sender-label ai-label">MEMORIX // RAG CORE INFERENCE</div>', unsafe_allow_html=True)
+            with st.spinner("Recherche vectorielle et recoupement dans le corpus..."):
                 answer_raw, docs, warning = core.answer_question(vectorstore, llm, qa_prompt, question)
 
             full_rendered_answer = st.write_stream(stream_text_generator(answer_raw))

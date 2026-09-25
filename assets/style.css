@@ -721,7 +721,6 @@ section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-child(12)::b
   min-height: 28px;
 }
 
-/* Micro-jauge d'énergie de compétence */
 .ny-card-meter {
   width: 100%;
   height: 2px;
@@ -736,6 +735,61 @@ section[data-testid="stSidebar"] div[role="radiogroup"] > label:nth-child(12)::b
 .meter-nlp   { width: 92%; background: linear-gradient(90deg, var(--signal-violet), var(--signal-green)); }
 .meter-mlops { width: 78%; background: linear-gradient(90deg, var(--signal-amber), var(--signal-blue)); }
 .meter-maths { width: 88%; background: linear-gradient(90deg, var(--signal-green), var(--signal-blue)); }
+
+/* ============================================================
+   Chatbot Pro Cybernétique & Bulles Asymétriques
+   ============================================================ */
+
+div[data-testid="stChatMessage"] {
+  background: rgba(18, 20, 28, 0.85) !important;
+  border: 1px solid var(--grid) !important;
+  border-radius: 6px !important;
+  padding: 12px 16px !important;
+  margin-bottom: 10px !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Différenciation Pilote vs Assistant RAG */
+div[data-testid="stChatMessage"]:has(.user-label) {
+  border-left: 3px solid var(--signal-blue) !important;
+  background: linear-gradient(90deg, rgba(79, 140, 255, 0.05), rgba(18, 20, 28, 0.85)) !important;
+}
+
+div[data-testid="stChatMessage"]:has(.ai-label) {
+  border-left: 3px solid var(--signal-violet) !important;
+  background: linear-gradient(90deg, rgba(124, 92, 252, 0.05), rgba(18, 20, 28, 0.85)) !important;
+}
+
+/* En-tête des messages dans le chat */
+.chat-sender-label {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+  line-height: 1;
+}
+
+.user-label {
+  color: var(--signal-blue);
+}
+
+.ai-label {
+  color: var(--signal-violet);
+}
+
+/* Barre d'entrée du chat (st.chat_input) */
+div[data-testid="stChatInput"] {
+  background: var(--panel) !important;
+  border: 1px solid var(--grid-strong) !important;
+  border-radius: 4px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+div[data-testid="stChatInput"]:focus-within {
+  border-color: var(--signal-violet) !important;
+  box-shadow: 0 0 12px rgba(124, 92, 252, 0.35) !important;
+}
 
 /* Boutons Streamlit Compacts */
 div.stButton > button {
@@ -805,9 +859,6 @@ div.stButton > button[kind="primary"] {
 .level-Partiel     { background: rgba(245, 165, 36, 0.15); color: var(--signal-amber); }
 .level-Bon         { background: rgba(79, 140, 255, 0.15); color: var(--signal-blue); }
 .level-Excellent   { background: rgba(47, 214, 160, 0.15); color: var(--signal-green); }
-
-div[data-testid="stChatInput"] { background: var(--panel) !important; border: 1px solid var(--grid-strong) !important; }
-div[data-testid="stChatMessage"] { background: var(--panel) !important; border: 1px solid var(--grid) !important; }
 
 .stTextArea textarea, .stTextInput input, .stNumberInput input {
   background: var(--panel) !important; color: var(--ink) !important;
